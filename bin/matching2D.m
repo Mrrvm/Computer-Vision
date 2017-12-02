@@ -21,7 +21,9 @@ bgimd=reshape(meddep,[480 640]);
 for i=1:numel(dirrgb1)
     im=rgb2gray(imread(dirrgb1(i).name));
     imshow(im);
-    foreg=abs(double(im)-double(bgim))>40;
+    foreg = abs(double(im)-double(bgim))>40;
+    %foreg=bwareafilt(abs(double(im)-double(bgim))>40,[1000 480*640]);
+    %foreg =bwlabel(foreg);
     figure(3);
     imshow(255*foreg);
 
@@ -66,6 +68,7 @@ for i=1:numel(dirrgb1)
         
         pause(2);
     end
+     
     foreg_ant = foreg;
     figure(4);
     imshow(255*foreg_ant);
