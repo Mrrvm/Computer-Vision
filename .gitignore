@@ -1,0 +1,25 @@
+# Arduino Create
+*.json
+*.adoc
+
+# Ignore all
+*
+# Unignore all with extensions
+!*.*
+
+# Unignore all dirs
+!*/
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Compressed files
+*.tgz
+*.zip
+*.tar
+
+# Datasets
+datasets/
