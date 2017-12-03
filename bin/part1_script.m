@@ -8,7 +8,7 @@
 %
 % - Pedro Pereira - 78806
 %
-% - João Belfo - 78913
+% - Joï¿½o Belfo - 78913
 %
 % - Ricardo Nunes - 78946
 %
@@ -30,15 +30,15 @@ T = [0.044365588846338
 %% Background estimation
 
 % Load intrinsic and extrinsic parameters between depth and rgb
-load calib_asus.mat;
-K_d=Depth_cam.K;
-K_rgb=RGB_cam.K;
+load /home/imarcher/Dropbox/Tecnico/PIV/Project/main/cameraparametersAsus.mat;
+K_d=cam_params.Kdepth;
+K_rgb=cam_params.Krgb;
 
 % Load image directory
-d_depth_1 = dir('depth1_*.mat');
-d_rgb_1 = dir('rgb_image1_*.png');
-d_depth_2 = dir('depth2_*.mat');
-d_rgb_2 = dir('rgb_image2_*.png');
+d_depth_1 = dir('/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena2/depth1_*.mat');
+d_rgb_1 = dir('/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena2/rgb_image1_*.png');
+d_depth_2 = dir('/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena2/depth2_*.mat');
+d_rgb_2 = dir('/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena2/rgb_image2_*.png');
 
 % Declaration of matrix for depth images
 imgs_kinetic_1 = zeros(480,640,length(d_depth_1),6);
@@ -50,14 +50,14 @@ for i=1:length(d_depth_1)
     im_depth = double(depth_array)/1000;
     clear depth_array
     im_rgb = imread(d_rgb_1(i).name);
-    imgs_kinetic_1(:,:,i,:) = get_kinetic_image(im_rgb,im_depth,K_rgb,K_d,R_d_to_rgb,T_d_to_rgb);
+    imgs_kinetic_1(:,:,i,:) = get_kinetic_image(im_rgb,im_depth,K_rgb,K_d,cam_params.R,cam_params.T);
     %imgs_kinetic_1(:,:,i) = im_depth;
     
     load(sprintf('%s',d_depth_2(i).name));
     im_depth = double(depth_array)/1000;
     clear depth_array
     im_rgb = imread(d_rgb_2(i).name);
-    imgs_kinetic_2(:,:,i,:) = get_kinetic_image(im_rgb,im_depth,K_rgb,K_d,R_d_to_rgb,T_d_to_rgb);
+    imgs_kinetic_2(:,:,i,:) = get_kinetic_image(im_rgb,im_depth,K_rgb,K_d,cam_params.R,cam_params.T);
 end
 %%
 % Background estimation through the median of every pixel in every image

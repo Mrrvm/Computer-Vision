@@ -1,0 +1,28 @@
+function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
+
+    ims=[];
+    imsd=[];
+    for i=1:numel(imgseq1)
+        im1=rgb2gray(imread(imgseq1(i).rgb));
+        im2=rgb2gray(imread(imgseq2(i).rgb));
+        imshow(im); colormap(gray);
+        load(imgseq1(i).depth);
+        load(imgseq2(i).depth);
+        drawnow;
+        ims=[ims im(:)];
+        imsd=[imsd depth_array(:)];
+    end
+
+    medim=median(double(ims),2);
+    meddep=median(double(imsd),2);
+    bgim=(uint8(reshape(medim,[480 640])));
+    bgimd=reshape(meddep,[480 640]);
+
+
+    objects = 1;
+    
+end
+
+
+
+
