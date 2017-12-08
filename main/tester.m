@@ -28,7 +28,7 @@ clear depth_array;
 
 % world reference
 cam1toW.R = [1 0 0; 0 1 0; 0 0 1];
-cam1toW.T = [0 0 0];
+cam1toW.T = [0; 0; 0];
 
 % load depth images
 load(im1(i).depth);
