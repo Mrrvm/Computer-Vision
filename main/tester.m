@@ -78,7 +78,7 @@ for i = 1:n_points
 end
 [d,xx,tr]=procrustes(xyz1_points, xyz2_points,'scaling',false,'reflection',false);
 cam2toW.R = tr.T;
-cam2toW.T = tr.c(1,:);
+cam2toW.T = tr.c(1,:)';
 
 % runs part1
 objects = track3D_part1(im1, im2, cam_params, cam1toW, cam2toW);
