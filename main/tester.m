@@ -81,7 +81,7 @@ cam2toW.R = tr.T;
 cam2toW.T = tr.c(1,:);
 
 % runs part1
-objects = track3D_part1(im1, im2, cam_params, cam1toW, cam1toW);
+objects = track3D_part1(im1, im2, cam_params, cam1toW, cam2toW);
 
 
 
