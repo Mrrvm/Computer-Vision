@@ -1,0 +1,12 @@
+pcdownsample(pc, "gridaverage", "gridstep (30 40mm enough for 3D)")
+
+plotcube() -> para fazer o cubo
+
+Local feature extraction instead of sift ( they are worse!)
+
+matching pointclouds -> pcregrid(pc1, pc2)
+implements ICP
+check Point cloud registration
+
+
+fg(depth(:)==0) = 0

@@ -1,3 +1,4 @@
+
 % RANSAC
 
 % n - number of random samplings
@@ -11,7 +12,8 @@ for i=1:n
     ransac_points1 = points1(indices,:);
     ransac_points2 = points2(indices,:);
     matrix = zeros(12,12);
-    output_points = ransac_points1'; output_points = output_points(:);
+    output_points = ransac_points1'; 
+    output_points = output_points(:);
     for j=1:4
         matrix(j*3-2,:) = [ransac_points2(j,:) 0 0 0 0 0 0 1 0 0];
         matrix(j*3-1,:) = [0 0 0 ransac_points2(j,:) 0 0 0 0 1 0];

@@ -12,7 +12,6 @@ x = xyz_rgb(1,:);
 y = xyz_rgb(2,:);
 z = xyz_rgb(3,:);
 
-% u = Kx*x/z + Cx
 u = round(Kx * x./z + Cx);
 v = round(Ky * y./z + Cy);
 
@@ -23,8 +22,6 @@ v(v > rgb_size(1)) = 1;
 v(v < 1) = 1;
 u(u > rgb_size(2)) = 1;
 u(u < 1) = 1;
-
-% rgbd é a imagem rgb vista no plano depth!
 
 rgb_inds = sub2ind(rgb_size, v, u);
 

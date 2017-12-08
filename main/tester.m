@@ -21,53 +21,43 @@ end
 % world reference
 cam1toW.R = [1 0 0; 0 1 0; 0 0 1];
 cam1toW.T = [0 0 0];
-
+%{
 % define 4 points in cam1
 %imshow(im1(1).rgb);
-%[u1 v1] = ginput(4);
-u1 = [176.219725818736;210.340060929170;279.068164508759;448.207539984768];
-v1 = [303.135186595583;360.652322924600;364.064356435644;300.210586443260];
-cam1_points = round([u1 v1]);
-cam1_pts_homo = [cam1_points ones(4,1)];
+%[u1 v1] = ginput(8);
+u1 = [176.587352138308;210.217925386715;252.583712465878;252.583712465878;267.870336669700;279.662875341219;448.689262966333;453.493630573248];
+v1 = [301.209736123749;361.045950864422;352.310737033667;332.656505914468;331.782984531392;363.229754322111;300.336214740673;229.144222020018];
+cam1_points = fix([u1 v1]);
+cam1_pointsd =  inv(cam_params.Kdepth)*inv(cam_params.R)*([cam1_points'; ones(3, :)] - cam_params.T'*ones(3,8));
 
 % define 4 points in cam1
 %imshow(im2(1).rgb);
-%[u2 v2]=ginput(4);
-u2 = [163.047770700637;288.398089171975;353.475432211101;405.886715195632];
-v2 = [197.260691537762;242.683803457689;237.442675159236;180.663785259327];
-cam2_points = round([u2 v2]);
-cam2_pts_homo = [cam2_points ones(4,1)];
+%[u2 v2]=ginput(8);
+u2 = [164.794813466788;289.271610555050;334.694722474977;340.372611464968;351.728389444950;354.348953594177;406.760236578708;421.610100090992];
+v2 = [195.076888080073;241.810282074613;226.960418562329;205.122383985441;204.248862602366;236.132393084622;180.663785259327;111.655595996360];
+cam2_points = fix([u2 v2]);
+cam2_pointsd =  inv(cam_params.Kdepth)*inv(cam_params.R)*(cam2_points'-cam_params.T');
 
-% obtains xyz of 4 points from cam1
+% obtains xyz for both camaras
 K = cam_params.Kdepth;
-M1 = K*([cam1toW.R (cam1toW.T)']);
-depth1 = load(im1(1).depth);
-depth2 = load(im1(2).depth);
-depth1_array = zeros(1, 4);
-depth2_array = zeros(1, 4);
-xyz = zeros(4, 4);
-for i=1:4
-    depth1_array(i) = double(depth1.depth_array(cam1_points(i, 1), cam1_points(i, 2)))*0.001;
-    depth2_array(i) = double(depth2.depth_array(cam2_points(i, 1), cam2_points(i, 2)))*0.001;
-    for j=1:3
-        cam1_pts_homo(i, j) = cam1_pts_homo(i, j)*depth1_array(i);
-        cam2_pts_homo(i, j) = cam2_pts_homo(i, j)*depth2_array(i);
-    end
-    xyz(i, :) = linsolve(M1,cam1_pts_homo(i, :)')';
-    xyz(i, 4) = 1;
+load(im1(1).depth);
+xyz1 = get_xyzasus(depth_array(:), [480 640], (1:640*480)', K, 1, 0);
+load(im1(2).depth);
+xyz2 = get_xyzasus(depth_array(:), [480 640], (1:640*480)', K, 1, 0);
+
+xyz1_points = zeros(8, 3);
+xyz2_points = zeros(8, 3);
+for i = 1:8
+    xyz1_points(i, :) = xyz1(sub2ind(size(depth_array), cam1_pointsd(i,1), cam1_pointsd(i, 2)), :);
+    xyz2_points(i, :) = xyz2(sub2ind(size(depth_array), cam2_pointsd(i,1), cam2_pointsd(i, 2)), :);
 end
-
-% obtains R and T from cam2 to cam1 (aka world)
-KRT_matrix = zeros(3, 4);
-RT_matrix = zeros(3, 4);
-KRT_matrix = linsolve(xyz,cam2_pts_homo)';
-RT_matrix = linsolve(K, KRT_matrix);
-
-cam2toW.T = RT_matrix(:,4);
-cam2toW.R = RT_matrix(1:3,1:3);
+[d,xx,tr]=procrustes(xyz1_points, xyz2_points,'scaling',false,'reflection',false);
+cam2toW.R = tr.T;
+cam2toW.T = tr.c(1,:);
+%}
 
 % runs part1
-objects = track3D_part1(im1, im2, cam_params, cam1toW, cam2toW);
+objects = track3D_part1(im1, im2, cam_params, cam1toW, cam1toW);
 
 
 
