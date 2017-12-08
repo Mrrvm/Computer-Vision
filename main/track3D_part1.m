@@ -34,26 +34,39 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
         % get foreground
         [foreg_bin1, foreg_rgb1, foreg_depth1, foreg_gray1] = get_foreground(depth_array1, img_rgb_indepth1, bgimd1, dim, cam_params);
         [foreg_bin2, foreg_rgb2, foreg_depth2, foreg_gray2] = get_foreground(depth_array2, img_rgb_indepth2, bgimd2, dim, cam_params);
+close all;
+        foreg_xyz1 = zeros(dim(1)*dim(2), 3);
+        foreg_xyz2 = zeros(dim(1)*dim(2), 3);
+        % get xyz foeground
+        for m = 1:dim(1)
+            for n = 1:dim(2)
+                if foreg_depth1(m,n) > 0
+                    index = sub2ind(size(foreg_depth1), m, n);
+                    foreg_xyz1(index, :) = xyz1(index, :);
+                end
+                if foreg_depth2(m,n) > 0
+                    index = sub2ind(size(foreg_depth2), m, n);
+                    foreg_xyz2(index, :) = xyz2(index, :);
+                end
+            end
+        end
+        % do pointclouds
+        pc1 = pointCloud(foreg_xyz1, 'Color', reshape(foreg_rgb1,[dim(1)*dim(2) 3]));
+        pc2 = pointCloud(foreg_xyz2, 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
+        pcdown1 = pcdownsample(pc1,'gridAverage',0.01);
+        pcdown2 = pcdownsample(pc2,'gridAverage',0.01);
+        figure();
+        showPointCloud(pcdown1);
+        figure();
+        showPointCloud(pcdown2);
+        %figure();
+        %pcshow(pcmerge(pc1,pc2,0.001));
         pause;
-        %{
-        xyz1 = get_xyzasus(foreg1_depth(:), [480 640], (1:640*480)', cam_params.Kdepth, 1, 0);
-        xyz2 = get_xyzasus(foreg2_depth(:), [480 640], (1:640*480)', cam_params.Kdepth, 1, 0);
-        rgbd1 = get_rgbd(xyz1, foreg1_rgb, cam_params.R, cam_params.T, cam_params.Krgb);
-        rgbd2 = get_rgbd(xyz2, foreg2_rgb, cam_params.R, cam_params.T, cam_params.Krgb);
-        pc1 = pointCloud(xyz1, 'Color', reshape(rgbd1,[480*640 3]));
-        pc2 = pointCloud(xyz2*cam2toW.R+ones(length(xyz2),1)*cam2toW.T,'Color',reshape(rgbd2,[480*640 3]));
-        figure(1);
-        showPointCloud(pc1);
-        figure(2);
-        showPointCloud(pc2);
-        figure(3);
-        pcshow(pcmerge(pc1,pc2,0.001));
-        pause;
-        %}
     end
 
     objects = 1;
 end
+
 
 function bgimd = get_background(imgseq, dim)
 
@@ -81,8 +94,8 @@ function [foreg_label, foreg_rgb, foreg_depth, foreg_gray] = get_foreground(dept
 
     % calculates foreground label
     foreg_label = bwlabel(bwareafilt(double(depth_array)-bgimd<-100,[600 dim(1)*dim(2)]));
-    % erodes in disk shape
-    se = strel('disk',5);
+    % erodes in disk shape - THIS CAN BE BETTERED
+    se = strel('arbitrary',eye(7))
     foreg_label_eroded = imerode(foreg_label, se);
     
     % calculates foreground depth
@@ -94,13 +107,14 @@ function [foreg_label, foreg_rgb, foreg_depth, foreg_gray] = get_foreground(dept
         for n = 1:dim(2)
             if foreg_label(m, n) > 0
                 foreg_depth(m, n) = depth_array(m, n);
-                foreg_rgb(m, n, :) = rgb_indepth(m, n, :);
             end
             if foreg_label_eroded(m, n) > 0
                  foreg_depth_eroded(m, n) = depth_array(m, n);
+                 foreg_rgb(m, n, :) = rgb_indepth(m, n, :);
             end
         end
     end
+    foreg_gray = rgb2gray(foreg_rgb);
     figure();
     imshow(foreg_rgb);
     figure();

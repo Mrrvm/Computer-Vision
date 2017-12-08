@@ -52,33 +52,17 @@ figure(2);
 imshow(img_rgb_indepth2);
 
 n_points=10;
-%{
 x1=zeros(n_points,1);y1=x1;x2=y1;y2=x1;
 for i=1:n_points,
     figure(1);
-    [xa ya]=ginput(1); text(xa,ya,int2str(i));
+    [xa ya]=ginput(1);text(xa,ya,int2str(i));
     xa=fix(xa);ya=fix(ya);
     x1(i)=xa;y1(i)=ya;
     figure(2);
-    [xa ya]=ginput(1); text(xa,ya,int2str(i));
+    [xa ya]=ginput(1);text(xa,ya,int2str(i));
     xa=fix(xa);ya=fix(ya);
     x2(i)=xa;y2(i)=ya;
 end
-%}
-x1 = [182;177;519;233;263;242;460;463;280;226];
-x2 = [171;182;401;332;359;355;428;418;356;315];
-y1 = [302;239;190;325;337;270;240;299;365;362];
-y2 = [181;92 ;82 ;190;201;126;115;172;233;232];
-
-xyz1_points = zeros(n_points, 3);
-xyz2_points = zeros(n_points, 3);
-for i = 1:n_points
-    xyz1_points(i, :) = xyz1(sub2ind(size(depth_array1), y1(i), x1(i)), :);
-    xyz2_points(i, :) = xyz2(sub2ind(size(depth_array2), y2(i), x2(i)), :);
-end
-[d,xx,tr]=procrustes(xyz1_points, xyz2_points,'scaling',false,'reflection',false);
-cam2toW.R = tr.T;
-cam2toW.T = tr.c(1,:);
 
 % runs part1
 objects = track3D_part1(im1, im2, cam_params, cam1toW, cam1toW);
