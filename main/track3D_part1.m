@@ -37,7 +37,7 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
 close all;
         foreg_xyz1 = zeros(dim(1)*dim(2), 3);
         foreg_xyz2 = zeros(dim(1)*dim(2), 3);
-        % get xyz foeground
+        % get xyz foreground
         for m = 1:dim(1)
             for n = 1:dim(2)
                 if foreg_depth1(m,n) > 0
@@ -52,7 +52,7 @@ close all;
         end
         % do pointclouds
         pc1 = pointCloud(foreg_xyz1, 'Color', reshape(foreg_rgb1,[dim(1)*dim(2) 3]));
-        pc2 = pointCloud(foreg_xyz2*cam2toW.R+ones(length(foreg_xyz2),1)*cam2toW.T(1,:), 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
+        pc2 = pointCloud(foreg_xyz2*cam2toW.R+ones(length(foreg_xyz2),1)*cam2toW.T', 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
         pcdown1 = pcdownsample(pc1,'gridAverage',0.01);
         pcdown2 = pcdownsample(pc2,'gridAverage',0.01);
         figure();
@@ -60,7 +60,10 @@ close all;
         figure();
         showPointCloud(pcdown2);
         figure();
-        pcshow(pcmerge(pc1,pc2,0.001));
+close all;
+        pcm = pcmerge(pc1,pc2,0.001)
+        pcshow(pcm);
+        [image_rgb, image_depth] = pointCloudto2D(pcm, dim, cam_params.Kdepth);
         pause;
     end
 
@@ -122,7 +125,32 @@ function [foreg_label, foreg_rgb, foreg_depth, foreg_gray] = get_foreground(dept
     clear n; clear m; clear se;
 end
 
-
+function [image_rgb, image_depth] = pointCloudto2D(pc, dim, K)
+    
+    Kx = K(1,1); Cx = K(1,3); Ky = K(2,2); Cy = K(2,3);
+    xyz = pc.Location';
+    xyz_rgb = pc.Color;
+    
+    X = xyz(1,:);
+    Y = xyz(2,:);
+    Z = xyz(3,:);
+    
+    dx = round(Kx*X + Cx*Z);
+    dy = round(Ky*Y + Cy*Z);
+    d  = Z;
+    x  = round(dx./d);
+    y  = round(dy./d);    
+    
+    image_depth = zeros(dim(1), dim(2));
+    image_rgb = uint8(zeros(dim(1), dim(2), 3));
+    for i = 1:length(x)
+        if x(i) < dim(2) && y(i) < dim(1) && x(i) > 1 && y(i) > 1
+            image_depth(x(i), y(i)) = d(i);
+            image_rgb(x(i), y(i), :) = xyz_rgb(i, :);
+        end
+    end
+    
+end
 
 
 

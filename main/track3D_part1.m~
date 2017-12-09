@@ -37,29 +37,40 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
 close all;
         foreg_xyz1 = zeros(dim(1)*dim(2), 3);
         foreg_xyz2 = zeros(dim(1)*dim(2), 3);
-        % get xyz foeground
+        % get xyz foreground
         for m = 1:dim(1)
             for n = 1:dim(2)
                 if foreg_depth1(m,n) > 0
-                    foreg_xyz1(sub2ind(size(foreg_depth1), m, n), :) = xyz1(sub2ind(size(foreg_depth1), m, n), :);
+                    index = sub2ind(size(foreg_depth1), m, n);
+                    foreg_xyz1(index, :) = xyz1(index, :);
                 end
-                if foreg_depth2(m,n) >
+                if foreg_depth2(m,n) > 0
+                    index = sub2ind(size(foreg_depth2), m, n);
+                    foreg_xyz2(index, :) = xyz2(index, :);
+                end
             end
         end
         % do pointclouds
         pc1 = pointCloud(foreg_xyz1, 'Color', reshape(foreg_rgb1,[dim(1)*dim(2) 3]));
-        pc2 = pointCloud(foreg_xyz2, 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
+        pc2 = pointCloud(foreg_xyz2*cam2toW.R+ones(length(foreg_xyz2),1)*cam2toW.T', 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
+        pcdown1 = pcdownsample(pc1,'gridAverage',0.01);
+        pcdown2 = pcdownsample(pc2,'gridAverage',0.01);
+        clear pc1; clear pc2;
         figure();
-        showPointCloud(pc1);
+        showPointCloud(pcdown1);
         figure();
-        showPointCloud(pc2);
-        %figure();
-        %pcshow(pcmerge(pc1,pc2,0.001));
+        showPointCloud(pcdown2);
+        figure();
+close all;
+        pcm = pcmerge(pcdown1,pcdown2,0.001)
+        pcshow(pcm);
+        [image_rgb, image_depth] = pointCloudto2D(pcm, dim, cam_params.Kdepth);
         pause;
     end
 
     objects = 1;
 end
+
 
 function bgimd = get_background(imgseq, dim)
 
@@ -115,7 +126,32 @@ function [foreg_label, foreg_rgb, foreg_depth, foreg_gray] = get_foreground(dept
     clear n; clear m; clear se;
 end
 
-
+function [image_rgb, image_depth] = pointCloudto2D(pc, dim, K)
+    
+    Kx = K(1,1); Cx = K(1,3); Ky = K(2,2); Cy = K(2,3);
+    xyz = pc.Location';
+    
+    X = xyz(1,:);
+    Y = xyz(2,:);
+    Z = xyz(3,:);
+    
+    dx = round(Kx*X + Cx*Z);
+    dy = round(Ky*Y + Cy*Z);
+    d  = Z;
+    x  = round(dx./d);
+    y  = round(dy./d);
+ 
+    x(i) < dim(2) && y(i) < dim(1) && x(i) > 1 && 
+    
+    image_depth = zeros(dim(1), dim(2));
+    for i = 1:length(x)
+         image_depth(x(i), y(i)) = d(i);
+    end
+    
+    image_depth = 0;
+    image_rgb = 0;
+    
+end
 
 
 
