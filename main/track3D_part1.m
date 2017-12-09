@@ -52,15 +52,15 @@ close all;
         end
         % do pointclouds
         pc1 = pointCloud(foreg_xyz1, 'Color', reshape(foreg_rgb1,[dim(1)*dim(2) 3]));
-        pc2 = pointCloud(foreg_xyz2, 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
+        pc2 = pointCloud(foreg_xyz2*cam2toW.R+ones(length(foreg_xyz2),1)*cam2toW.T(1,:), 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
         pcdown1 = pcdownsample(pc1,'gridAverage',0.01);
         pcdown2 = pcdownsample(pc2,'gridAverage',0.01);
         figure();
         showPointCloud(pcdown1);
         figure();
         showPointCloud(pcdown2);
-        %figure();
-        %pcshow(pcmerge(pc1,pc2,0.001));
+        figure();
+        pcshow(pcmerge(pc1,pc2,0.001));
         pause;
     end
 
