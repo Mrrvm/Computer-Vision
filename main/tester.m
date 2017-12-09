@@ -28,7 +28,7 @@ clear depth_array;
 
 % world reference
 cam1toW.R = [1 0 0; 0 1 0; 0 0 1];
-cam1toW.T = [0 0 0];
+cam1toW.T = [0; 0; 0];
 
 % load depth images
 load(im1(i).depth);
@@ -76,12 +76,14 @@ for i = 1:n_points
     xyz1_points(i, :) = xyz1(sub2ind(size(depth_array1), y1(i), x1(i)), :);
     xyz2_points(i, :) = xyz2(sub2ind(size(depth_array2), y2(i), x2(i)), :);
 end
+
 [d,xx,tr]=procrustes(xyz1_points, xyz2_points,'scaling',false,'reflection',false);
+
 cam2toW.R = tr.T;
 cam2toW.T = tr.c;
 
 % runs part1
-objects = track3D_part1(im1, im2, cam_params, cam2toW, cam2toW);
+objects = track3D_part1(im1, im2, cam_params, cam1toW, cam2toW);
 
 
 
