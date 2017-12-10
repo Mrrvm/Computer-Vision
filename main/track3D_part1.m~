@@ -52,20 +52,21 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
         pc1 = pointCloud(foreg_xyz1, 'Color', reshape(foreg_rgb1,[dim(1)*dim(2) 3]));
         foreg_xyz2toW = cam2toW.R*foreg_xyz2'+cam2toW.T*ones(1,length(foreg_xyz2));
         pc2 = pointCloud((foreg_xyz2toW)', 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
-        pcdown1 = pcdownsample(pc1,'gridAverage',0.005);
-        pcdown2 = pcdownsample(pc2,'gridAverage',0.005);
+        pcdown1 = pcdownsample(pc1,'gridAverage',0.008);
+        pcdown2 = pcdownsample(pc2,'gridAverage',0.008);
         clear pc1 pc2;
         %figure(); showPointCloud(pcdown1);
         %figure(); showPointCloud(pcdown2);
         
         % merge pointclouds
-        pcm = pcmerge(pcdown1, pcdown2, 0.001)
+        pcm = pcmerge(pcdown1, pcdown2, 0.001);
         %figure(); pcshow(pcm);
         
         % create graph
-        G = create_graph(pcm);
+        G = create_graph(pcm, 0.2);
         % create MST
-        [Tree, pred] = graphminspantree(G);
+        [T,pred] = minspantree(G,'Method','sparse','Type','forest');
+   
         % create object vector -> for first frame only!
 
         % get merged 2D projection
@@ -109,7 +110,7 @@ function [foreg_label, foreg_rgb, foreg_depth, foreg_gray] = get_foreground(dept
     % calculates foreground label
     foreg_label = bwlabel(bwareafilt(double(depth_array)-bgimd<-100,[600 dim(1)*dim(2)]));
     % erodes in disk shape - THIS CAN BE BETTERED
-    se = strel('arbitrary',eye(7))
+    se = strel('arbitrary',eye(7));
     foreg_label_eroded = imerode(foreg_label, se);
     
     % calculates foreground depth
@@ -161,8 +162,7 @@ function [image_rgb, image_depth] = pointCloudto2D(pc, dim, K)
     clear X Y Z dx dy x y i Kx Ky Cx Cy;
 end
 
-
-function G = create_graph(pc)
+function G = create_graph(pc, maxdist)
 
     xyz = pc.Location;
     length_ = length(xyz);
@@ -174,13 +174,19 @@ function G = create_graph(pc)
             dy = xyz(i, 2) - xyz(j, 2);
             dz = xyz(i, 3) - xyz(j, 3);
             d = sqrt((dx^2)+(dy^2)+(dz^2));
-            conns_matrix(i,j) = d;
+            if d < maxdist
+                conns_matrix(i,j) = d;
+            end
         end
     end
     
     G = graph(conns_matrix, 'upper');
-
+    clear conns_matrix length xyz i j d dx dy dz;
 end
+
+
+
+
 
 
 
