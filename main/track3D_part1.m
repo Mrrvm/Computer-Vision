@@ -21,10 +21,8 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
         % load rgb images
         img_rgb1 = imread(imgseq1(i).rgb);
         img_rgb2 = imread(imgseq2(i).rgb);
-        figure(1);
-        imshow(img_rgb1);
-        figure(2);
-        imshow(img_rgb2);
+        %figure(1); imshow(img_rgb1);
+        %figure(2); imshow(img_rgb2);
         % get xyz 
         xyz1 = get_xyzasus(depth_array1(:), [dim(1) dim(2)], (1:dim(1)*dim(2))', cam_params.Kdepth, 1, 0);
         xyz2 = get_xyzasus(depth_array2(:), [dim(1) dim(2)], (1:dim(1)*dim(2))', cam_params.Kdepth, 1, 0);
@@ -34,10 +32,9 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
         % get foreground
         [foreg_bin1, foreg_rgb1, foreg_depth1, foreg_gray1] = get_foreground(depth_array1, img_rgb_indepth1, bgimd1, dim, cam_params);
         [foreg_bin2, foreg_rgb2, foreg_depth2, foreg_gray2] = get_foreground(depth_array2, img_rgb_indepth2, bgimd2, dim, cam_params);
-close all;
+        % get xyz foreground
         foreg_xyz1 = zeros(dim(1)*dim(2), 3);
         foreg_xyz2 = zeros(dim(1)*dim(2), 3);
-        % get xyz foreground
         for m = 1:dim(1)
             for n = 1:dim(2)
                 if foreg_depth1(m,n) > 0
@@ -50,20 +47,34 @@ close all;
                 end
             end
         end
+        
         % do pointclouds
         pc1 = pointCloud(foreg_xyz1, 'Color', reshape(foreg_rgb1,[dim(1)*dim(2) 3]));
-        pc2 = pointCloud(foreg_xyz2*cam2toW.R+ones(length(foreg_xyz2),1)*cam2toW.T', 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
-        pcdown1 = pcdownsample(pc1,'gridAverage',0.01);
-        pcdown2 = pcdownsample(pc2,'gridAverage',0.01);
-        figure();
-        showPointCloud(pcdown1);
-        figure();
-        showPointCloud(pcdown2);
-        figure();
-close all;
-        pcm = pcmerge(pc1,pc2,0.001)
-        pcshow(pcm);
-        [image_rgb, image_depth] = pointCloudto2D(pcm, dim, cam_params.Kdepth);
+        foreg_xyz2toW = cam2toW.R*foreg_xyz2'+cam2toW.T*ones(1,length(foreg_xyz2));
+        pc2 = pointCloud((foreg_xyz2toW)', 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
+        pcdown1 = pcdownsample(pc1,'gridAverage',0.005);
+        pcdown2 = pcdownsample(pc2,'gridAverage',0.005);
+        clear pc1 pc2;
+        %figure(); showPointCloud(pcdown1);
+        %figure(); showPointCloud(pcdown2);
+        
+        % merge pointclouds
+        pcm = pcmerge(pcdown1, pcdown2, 0.001)
+        %figure(); pcshow(pcm);
+        
+        % create graph
+        G = create_graph(pcm, 0.2);
+        % create MST
+        [Tree, pred] = graphminspantree(G);
+        % create object vector -> for first frame only!
+
+        % get merged 2D projection
+        [image_rgb, image_depth] = pointCloudto2D(pcm, dim, cam_params.Kdepth);      
+        
+        % get matches between frames
+                  
+        % update object coordinates in vector
+        
         pause;
     end
 
@@ -89,7 +100,7 @@ function bgimd = get_background(imgseq, dim)
     meddep=median(double(imsd),2);
     bgimd=reshape(meddep,[dim(1) dim(2)]);
 
-    clear imsd; clear n_seq; clear meddep; clear depth_array;
+    clear imsd n_seq meddep depth_array;
         
 end
 
@@ -118,11 +129,9 @@ function [foreg_label, foreg_rgb, foreg_depth, foreg_gray] = get_foreground(dept
         end
     end
     foreg_gray = rgb2gray(foreg_rgb);
-    figure();
-    imshow(foreg_rgb);
-    figure();
-    imagesc([bgimd depth_array foreg_depth foreg_depth_eroded]);
-    clear n; clear m; clear se;
+    %figure(); imshow(foreg_rgb);
+    %figure(); imagesc([bgimd depth_array foreg_depth foreg_depth_eroded]);
+    clear n m se;
 end
 
 function [image_rgb, image_depth] = pointCloudto2D(pc, dim, K)
@@ -149,11 +158,31 @@ function [image_rgb, image_depth] = pointCloudto2D(pc, dim, K)
             image_rgb(x(i), y(i), :) = xyz_rgb(i, :);
         end
     end
-    
+    clear X Y Z dx dy x y i Kx Ky Cx Cy;
 end
 
 
+function G = create_graph(pc, maxdist)
 
+    xyz = pc.Location;
+    length_ = length(xyz);
+    conns_matrix = zeros(length_, length_);
+        
+    for i = 1:length_-1
+        for j = (i+1):length_
+            dx = xyz(i, 1) - xyz(j, 1);
+            dy = xyz(i, 2) - xyz(j, 2);
+            dz = xyz(i, 3) - xyz(j, 3);
+            d = sqrt((dx^2)+(dy^2)+(dz^2));
+            if(d < maxdist)
+                conns_matrix(i,j) = d;
+            end
+        end
+    end
+    
+    G = graph(conns_matrix, 'upper');
+
+end
 
 
 

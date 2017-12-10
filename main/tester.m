@@ -46,13 +46,11 @@ xyz2 = get_xyzasus(depth_array2(:), [dim(1) dim(2)], (1:dim(1)*dim(2))', cam_par
 img_rgb_indepth1 = get_rgbd(xyz1, img_rgb1, cam_params.R, cam_params.T, cam_params.Krgb);
 img_rgb_indepth2 = get_rgbd(xyz2, img_rgb2, cam_params.R, cam_params.T, cam_params.Krgb);
 
-figure(1);
-imshow(img_rgb_indepth1);
-figure(2);
-imshow(img_rgb_indepth2);
-
 n_points=10;
+
 %{
+figure(1); imshow(img_rgb_indepth1);
+figure(2); imshow(img_rgb_indepth2);
 x1=zeros(n_points,1);y1=x1;x2=y1;y2=x1;
 for i=1:n_points,
     figure(1);
@@ -79,7 +77,7 @@ end
 
 [d,xx,tr]=procrustes(xyz1_points, xyz2_points,'scaling',false,'reflection',false);
 
-cam2toW.R = tr.T;
+cam2toW.R = tr.T';
 cam2toW.T = tr.c(1,:)';
 
 % runs part1
