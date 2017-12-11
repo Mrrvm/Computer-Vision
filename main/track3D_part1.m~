@@ -23,15 +23,15 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
         img_rgb2 = imread(imgseq2(i).rgb);
         %figure(1); imshow(img_rgb1);
         %figure(2); imshow(img_rgb2);
-        % get xyz 
+        % get xyz maizena2
         xyz1 = get_xyzasus(depth_array1(:), [dim(1) dim(2)], (1:dim(1)*dim(2))', cam_params.Kdepth, 1, 0);
         xyz2 = get_xyzasus(depth_array2(:), [dim(1) dim(2)], (1:dim(1)*dim(2))', cam_params.Kdepth, 1, 0);
         % get all rgb points in depth plane
         img_rgb_indepth1 = get_rgbd(xyz1, img_rgb1, cam_params.R, cam_params.T, cam_params.Krgb);
         img_rgb_indepth2 = get_rgbd(xyz2, img_rgb2, cam_params.R, cam_params.T, cam_params.Krgb);
         % get foreground
-        [foreg_bin1, foreg_rgb1, foreg_depth1, foreg_gray1] = get_foreground(depth_array1, img_rgb_indepth1, bgimd1, dim, cam_params);
-        [foreg_bin2, foreg_rgb2, foreg_depth2, foreg_gray2] = get_foreground(depth_array2, img_rgb_indepth2, bgimd2, dim, cam_params);
+        [foreg_bin1, foreg_rgb1, foreg_depth1, foreg_gray1] = get_foreground(depth_array1, img_rgb_indepth1, bgimd1, dim);
+        [foreg_bin2, foreg_rgb2, foreg_depth2, foreg_gray2] = get_foreground(depth_array2, img_rgb_indepth2, bgimd2, dim);
         % get xyz foreground
         foreg_xyz1 = zeros(dim(1)*dim(2), 3);
         foreg_xyz2 = zeros(dim(1)*dim(2), 3);
@@ -47,31 +47,32 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
                 end
             end
         end
-        
+        clear xyz1 xyz2 img_rgb_indepth1 img_rgb_indepth2;
         % do pointclouds
         pc1 = pointCloud(foreg_xyz1, 'Color', reshape(foreg_rgb1,[dim(1)*dim(2) 3]));
         foreg_xyz2toW = cam2toW.R*foreg_xyz2'+cam2toW.T*ones(1,length(foreg_xyz2));
         pc2 = pointCloud((foreg_xyz2toW)', 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
-        pcdown1 = pcdownsample(pc1,'gridAverage',0.008);
-        pcdown2 = pcdownsample(pc2,'gridAverage',0.008);
+        pcdown1 = pcdownsample(pc1,'gridAverage',0.03);
+        pcdown2 = pcdownsample(pc2,'gridAverage',0.03);
         clear pc1 pc2;
         %figure(); showPointCloud(pcdown1);
         %figure(); showPointCloud(pcdown2);
         
         % merge pointclouds
-        pcm = pcmerge(pcdown1, pcdown2, 0.001);
+        pcm = pcmerge(pcdown1, pcdown2, 0.01);
         %figure(); pcshow(pcm);
         
-        % create graph
-        G = create_graph(pcm, 0.2);
-        % create MST
-        [T,pred] = minspantree(G,'Method','sparse','Type','forest');
-   
-        % create object vector -> for first frame only!
-
-        % get merged 2D projection
-        [image_rgb, image_depth] = pointCloudto2D(pcm, dim, cam_params.Kdepth);      
+        % label objects with points distancing a max of 20cm
+        xyz_label = label_objects(pcm, 0.2);
+        % sort vector by labels ascendingly
+        xyz_label = sortrows(xyz_label,4);
         
+        % detect objects with more than 20 points
+        [objects centroids] = detect_object(xyz_label, 20);
+        
+        % get merged 2D projection
+        [image_rgb, image_depth] = pointCloudto2D(pcm, dim, cam_params.Kdepth);   
+
         % get matches between frames
                   
         % update object coordinates in vector
@@ -84,6 +85,18 @@ end
 
 
 function bgimd = get_background(imgseq, dim)
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GET_BACKGROUND - Get the background from a depth image sequence
+%                   using the median.
+%
+%   INPUT
+%   imgseq  - a sequence of structures in which imgseq(i).depth
+%                   is the image in depth.
+%   dim     - image dimension.
+%
+%   OUPUT
+%   bgimd   - the background image in depth.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     % get all or 100 images for bg analysis
     n_seq = numel(imgseq);
@@ -105,27 +118,26 @@ function bgimd = get_background(imgseq, dim)
         
 end
 
-function [foreg_label, foreg_rgb, foreg_depth, foreg_gray] = get_foreground(depth_array, rgb_indepth, bgimd, dim, cam_params)
+function [foreg_bin, foreg_rgb, foreg_depth, foreg_gray] = get_foreground(depth_array, rgb_indepth, bgimd, dim)
 
     % calculates foreground label
-    foreg_label = bwlabel(bwareafilt(double(depth_array)-bgimd<-100,[600 dim(1)*dim(2)]));
+    foreg_bin = bwareafilt(double(depth_array)-bgimd<-100,[600 dim(1)*dim(2)]);
     % erodes in disk shape - THIS CAN BE BETTERED
-    se = strel('arbitrary',eye(7));
-    foreg_label_eroded = imerode(foreg_label, se);
+    se = strel('square', 3);
+    foreg_bin_eroded = imopen(foreg_bin, se);
     
     % calculates foreground depth
     foreg_depth = uint16(zeros(dim(1),dim(2)));
-    foreg_depth_eroded = uint16(zeros(dim(1),dim(2)));
     foreg_gray = uint8(zeros(dim(1),dim(2)));
     foreg_rgb = uint8(zeros(dim(1),dim(2),3));
     for m = 1:dim(1)
         for n = 1:dim(2)
-            if foreg_label(m, n) > 0
-                foreg_depth(m, n) = depth_array(m, n);
+            if foreg_bin(m, n) > 0
+                
             end
-            if foreg_label_eroded(m, n) > 0
-                 foreg_depth_eroded(m, n) = depth_array(m, n);
-                 foreg_rgb(m, n, :) = rgb_indepth(m, n, :);
+            if foreg_bin_eroded(m, n) > 0
+                foreg_depth(m, n) = depth_array(m, n);
+                foreg_rgb(m, n, :) = rgb_indepth(m, n, :);
             end
         end
     end
@@ -162,38 +174,81 @@ function [image_rgb, image_depth] = pointCloudto2D(pc, dim, K)
     clear X Y Z dx dy x y i Kx Ky Cx Cy;
 end
 
-function G = create_graph(pc, maxdist)
+function [xyz_label npts] = label_objects(pc, maxdist)
 
     xyz = pc.Location;
-    length_ = length(xyz);
-    conns_matrix = zeros(length_, length_);
-        
-    for i = 1:length_-1
-        for j = (i+1):length_
+    len = length(xyz);
+    xyz_label = [xyz zeros(len, 1)];
+    for i = 1:len
+        xyz_label(i,4) = i;
+    end
+                
+    for i = 1:len-1
+        for j = (i+1):len
             dx = xyz(i, 1) - xyz(j, 1);
             dy = xyz(i, 2) - xyz(j, 2);
             dz = xyz(i, 3) - xyz(j, 3);
             d = sqrt((dx^2)+(dy^2)+(dz^2));
             if d < maxdist
-                conns_matrix(i,j) = d;
+                xyz_label(j,4) = xyz_label(i,4);
             end
         end
     end
-    
-    G = graph(conns_matrix, 'upper');
-    clear conns_matrix length xyz i j d dx dy dz;
+        
+    clear len xyz i j d dx dy dz;
 end
 
+function [objects centroids] = detect_object(xyz_label, nmin)
 
-
-
-
-
-
-
-
-
-
+    len = length(xyz_label);
+    obj_counter = zeros(20, 3);
+    
+    n_obj = 1;
+    label = 0;
+    
+    % get how many objects and points per each there are
+    for i=1:len
+        if label ~= xyz_label(i, 4)
+            if obj_counter(n_obj,2) >= nmin
+               n_obj = n_obj+1;
+            end
+            label = xyz_label(i, 4);
+            obj_counter(n_obj, 1) = label; 
+            obj_counter(n_obj, 2) = 0;
+            obj_counter(n_obj, 3) = i; 
+        end
+        obj_counter(n_obj, 2) = obj_counter(n_obj, 2) + 1;
+    end
+    % for the last object found
+    if obj_counter(n_obj,2) < nmin
+        obj_counter(n_obj, :) = [0 0 0];
+        n_obj = n_obj-1;
+    end
+  
+    objs_xyz = repmat(struct, 1, n_obj); 
+    objects = repmat(struct, 1, n_obj);
+    % splits xyz_label in each object
+    for i=1:n_obj
+        init = obj_counter(i, 3);
+        finit = init + obj_counter(i, 2) - 1;
+        objs_xyz(i).x = xyz_label(init:finit, 1);
+        objs_xyz(i).y = xyz_label(init:finit, 2);
+        objs_xyz(i).z = xyz_label(init:finit, 3);
+        
+        % finds max and min in each dimmension
+        pmax.x = max(objs_xyz(i).x);
+        pmin.x = min(objs_xyz(i).x);
+        pmax.y = max(objs_xyz(i).y);
+        pmin.y = min(objs_xyz(i).y);
+        pmax.z = max(objs_xyz(i).z);
+        pmin.z = min(objs_xyz(i).z);
+        
+        objects(i)
+        
+    end
+ 
+    centroids = 0;
+end
 
 
 
