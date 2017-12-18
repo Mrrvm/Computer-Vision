@@ -1,7 +1,8 @@
-%% -- CRIAR LISTA IMAGENS
+%% CRIAR LISTA IMAGENS
 clear 
 close all
 clc
+
 %DATA DIRECTORY
 base_data_dir='C:\Users\luisr\Desktop\Luis\IST\PIV\pivproject\datasets\maizena_chocapic\data_rgb\';
 %WORKING DIRECTORY - location where all directories with programs
@@ -21,17 +22,21 @@ for i=1:length(d1)
     tempdepth = dir(cat(2,base_data_dir, 'depth2_', num2str(i),'.mat'));
     im2(i).depth = tempdepth.name;
 end
+
 %load calibration data
 load cameraparametersAsus;
 projs=dir(basedir);
+
 % LOGFILE
 outputdir=cat(2,dataset,'/');
 fichlog='output.html';
+
 %PROTEGER DADOS GLOBAIS CONTRA OS CLEAR QUE ALGUNS FAZEM DENTRO DAS FUNCOES
 save dados2;
 texto={};
 caminho={};
 %cell(3,length(projs));
+
 %%
 try,%%%Correr todos os projectos em paralelo!
     %    parfor i=3:length(projs),
@@ -73,6 +78,7 @@ catch
     return;
 end
 save dados2
+
 %%
 %SHOW OUTPUT
 colors=nchoosek((0:.2:1),3);
