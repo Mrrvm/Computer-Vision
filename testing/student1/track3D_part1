@@ -1,0 +1,5 @@
+function [objects] = track3D_part1( im1, im2, cams, cam1toW, cam2toW )
+
+load lab1JPC
+
+end
