@@ -1,7 +1,9 @@
-%% -- CRIAR LISTA IMAGENS
+%% CRIAR LISTA IMAGENS
+
 clear 
 close all
 clc
+
 %DATA DIRECTORY
 base_data_dir='C:\Users\luisr\Desktop\Luis\IST\PIV\pivproject\datasets\maizena_chocapic\data_rgb\';
 d1 = dir(cat(2,base_data_dir, 'depth1*'));
@@ -18,7 +20,8 @@ for i=1:length(d1)
     tempdepth = dir(cat(2,base_data_dir, 'depth2_', num2str(i),'.mat'));
     im2(i).depth = tempdepth.name;
 end
-%load calibration data
+
+%Load calibration data
 load cameraparametersAsus;
 %WORKING DIRECTORY - location where all directories with programs
 basedir='C:\Users\luisr\Desktop\Luis\IST\PIV\testing';
@@ -29,6 +32,7 @@ projs=dir(basedir);
 % LOGFILE
 outputdir=cat(2,dataset,'/');
 fichlog='output.html';
+
 %GET WORLD FRAME TRANSFORMATION
 % Get image dimension
 load(im1(1).depth);
@@ -70,6 +74,7 @@ end
 cam2toW.R = tr.T';
 cam2toW.T = (tr.c(1,:)).';
 
+% Real transformation according to professor
 if strcmp(dataset, 'lab1')
     cam2toW.R = [0.947680445871955 -0.0773478730699484 -0.309708054534408;...
         0.319055818409704 0.198339956876607 0.926749505662183;...
@@ -83,6 +88,7 @@ save dados1;
 texto={};
 caminho={};
 %cell(3,length(projs));
+
 %%
 try %%%Correr todos os projectos em paralelo!
     %    parfor i=3:length(projs),
@@ -124,6 +130,7 @@ catch
     return;
 end
 save dados2
+
 %%
 %SHOW OUTPUT
 colors=nchoosek((0:.2:1),3);
