@@ -1,0 +1,45 @@
+function [objects] = track3D_part111( im1, im2, cam_params, cam1toW, cam2toW )
+
+% Define global variables
+global rgb_threshold
+global depth_threshold
+global label_threshold
+global seq_threshold
+global gradient_threshold
+global peak_thresh
+
+% Define thresholds
+seq_threshold = 30; % maximum of 30 images to perform background removal
+rgb_threshold = 35;
+depth_threshold = 50; % Able to deal with small objects
+label_threshold = 500; % Minimum object has 500 pixels
+gradient_threshold = 200; % Assumed object is never > 20cm in depth
+peak_thresh = 0.06; % SIFT peak threshold parameter
+gridStep = 0.005; % Pointcloud downsample grid size parameter
+maxPointDistance = 0.200; % Maximum of 20 cm between centroids distance to
+% be considered the same object
+flag_init_object = false; % Flag to capture first object appearance
+
+% Object tracking through frames parameters
+alpha = 0.6; % Weight given to the #matches/#features
+beta = 0.2;  % Weight given to the color histogram difference
+gamma = 0.2; % Weight given to the object eccentricity match
+
+% Initializes 'objects' structure
+objects = [];
+
+% Initialize camera parameters
+Kdepth = cam_params.Kdepth; % 3x3 matrix
+Krgb = cam_params.Krgb;
+R = cam_params.R; % Rotation matrix from depth to RGB (extrinsic params)
+T = cam_params.T; % Translation from depth to RGB
+
+% Initialize world frame parameters
+Rw1 = cam1toW.R; % 3x3  Rotation matrix between 1st camera and world frame
+Tw1 = cam1toW.T; % 3x1 Translation vector from camera 1 to the world frame
+Rw2 = cam2toW.R; % 3x3  Rotation matrix between 2nd camera and world frame
+Tw2 = cam2toW.T; % 3x1 Translation vector from camera 2 to the world frame
+
+load lab1JPC
+
+end
