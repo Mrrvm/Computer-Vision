@@ -27,6 +27,7 @@ clear depth_array;
 cam1toW.R = [1 0 0; 0 1 0; 0 0 1];
 cam1toW.T = [0; 0; 0];
 
+% define the images to analyze
 n_imgs = length(im1);
 if n_imgs < 10
     n_sets = n_imgs;
@@ -46,9 +47,14 @@ else
 end
 
 d_best = 10;
+n_samples = 500;
+xyz1_points = zeros(4, 3);
+xyz2_points = zeros(4, 3);
 
 for j = 1:n_sets
+    
     j_rand = img_set(j);
+    
     % load depth images
     load(im1(j_rand).depth);
     depth_array1 = depth_array;
@@ -83,32 +89,24 @@ for j = 1:n_sets
         end
     end
 
-    [fLMedS, inliers] = estimateFundamentalMatrix(matchedPoints1,matchedPoints2,'NumTrials', 2000, 'Method','RANSAC', 'DistanceThreshold', 0.4);
-
-    xyz1_points = zeros(length(matchedPoints1(inliers,:)), 3);
-    xyz2_points = zeros(length(matchedPoints1(inliers,:)), 3);
-    for i = 1:length(matchedPoints1)
-        if inliers(i) == 1
-            xyz1_points(i, :) = xyz1(sub2ind(size(depth_array1), matchedPoints1(i,2), matchedPoints1(i,1)), :);
-            xyz2_points(i, :) = xyz2(sub2ind(size(depth_array2), matchedPoints2(i,2), matchedPoints2(i,1)), :);
+    for i = 1:n_samples
+        ind = randperm(length(matchedPoints1),4);
+        xyz1_points(:, :) = xyz1(sub2ind(size(depth_array1), matchedPoints1(ind, 2), matchedPoints1(ind,1)), :);
+        xyz2_points(:, :) = xyz2(sub2ind(size(depth_array2), matchedPoints2(ind, 2), matchedPoints2(ind,1)), :);
+        [d,xx,tr] = procrustes(xyz1_points, xyz2_points,'scaling',false,'reflection',false);
+        if d < d_best
+            tr_best = tr;
+            d_best = d;
+            img1_best = img_rgb_indepth1;
+            img2_best = img_rgb_indepth2;
+            matchedPoints1_best= matchedPoints1(ind, :);
+            matchedPoints2_best= matchedPoints2(ind, :);
         end
-    end
-
-    [d,xx,tr] = procrustes(xyz1_points, xyz2_points,'scaling',false,'reflection',false);
-    if d < d_best
-        tr_best = tr;
-        d_best = d;
-        inliers_best = inliers;
-        matchedPoints1_best = matchedPoints1;
-        matchedPoints2_best = matchedPoints2;
-        img1_best = img_rgb_indepth1;
-        img2_best = img_rgb_indepth2;
-    end
-    
+    end   
     clear matchedPoints1 matchedPoints2;
 end
 
-showMatchedFeatures(img1_best, img2_best, matchedPoints1_best(inliers_best,:),matchedPoints2_best(inliers_best,:),'montage','PlotOptions',{'ro','go','y--'});
+showMatchedFeatures(img1_best, img2_best, matchedPoints1_best, matchedPoints2_best,'montage','PlotOptions',{'ro','go','y--'});
 
 
 
