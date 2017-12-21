@@ -6,7 +6,7 @@ clc;
 load '/home/imarcher/Dropbox/Tecnico/PIV/Project/main/cameraparametersAsus.mat';
 
 % loads dataset
-base_data_dir = '/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena2/';
+base_data_dir = '/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena4/';
 d1 = dir([base_data_dir 'depth1*']);
 d2 = dir([base_data_dir 'depth2*']);
 r1 = dir([base_data_dir 'rgb_image1_*']);
@@ -28,22 +28,16 @@ cam1toW.R = [1 0 0; 0 1 0; 0 0 1];
 cam1toW.T = [0; 0; 0];
 
 n_imgs = length(im1);
-if n_imgs < 10
+if n_imgs < 5
     n_sets = n_imgs;
     img_set = zeros(1, n_imgs);
     for i = 1:n_imgs
-        img_set(1, i) = i;
-    end
-else
-    p = floor(n_imgs/10);
-    n_sets = 10;
-    img_set = zeros(1, n_sets);
-    p_aux = p;
-    for i = 1:n_sets
-        img_set(1, i) = p;
-        p = p + p_aux;
+        img_set(, i);
     end
 end
+
+n_sets = round(n_imgs/5);
+img_set = randperm(n_imgs, n_sets);
 
 d_best = 10;
 

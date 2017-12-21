@@ -18,7 +18,7 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
     
     % for the first frame
     pcm1 = get_merged_pointCloud(1, imgseq1, imgseq2, cam_params, bgimd1, bgimd2, cam2toW);
-    xyz_label = label_objects(pcm1, 0.2);
+    xyz_label = label_objects(pcm1, 0.02);
     xyz_label = sortrows(xyz_label,4);
     [frame_objs, n_obj] = detect_objects(xyz_label, 20);
     for i = 1:n_obj
@@ -32,7 +32,7 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
     for i = 1:numel(imgseq1)
         
         pcm2 = get_merged_pointCloud(i, imgseq1, imgseq2, cam_params, bgimd1, bgimd2, cam2toW);
-        xyz_label = label_objects(pcm2, 0.2);
+        xyz_label = label_objects(pcm2, 0.02);
         xyz_label = sortrows(xyz_label,4);
         [frame_objs, n_obj] = detect_objects(xyz_label, 20);
         [image_rgb2, image_depth2] = pointCloudto2D(pcm2, dim, cam_params.Kdepth);  
@@ -45,32 +45,26 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
         matches = matches(:, perm) ;
         scores  = scores(perm) ;
 
-        xa = kpts1(1,matches(1,:)) ;
-        xb = kpts2(1,matches(2,:)) + size(image_rgb1,2) ;
-        ya = kpts1(2,matches(1,:)) ;
-        yb = kpts2(2,matches(2,:)) ;
-
-        figure(1) ; clf ;
-        imagesc(cat(2, image_rgb1, image_rgb2)) ;
-        axis image off ;
-        figure(2) ; clf ;
-        imagesc(cat(2, image_rgb1, image_rgb2)) ;
-        hold on ;
-        h = line([xa ; xb], [ya ; yb]) ;
-        set(h,'linewidth', 1, 'color', 'b') ;
-        vl_plotframe(kpts1(:,matches(1,:))) ;
-        kpts2(1,:) = kpts2(1,:) + size(image_rgb1,2) ;
-        vl_plotframe(kpts2(:,matches(2,:))) ;
-        axis image off ;
-                  
+        xa = kpts1(1,matches(1,:));
+        xb = kpts2(1,matches(2,:));
+        ya = kpts1(2,matches(1,:));
+        yb = kpts2(2,matches(2,:));
+                 
         % update object coordinates in vector
+        for i = 1:length(matches)
+            x1 = kpts1(1, matches(1, i)); y1 = kpts1(2, matches(1, i));
+            x2 = kpts2(1, matches(1, i)); y2 = kpts2(2, matches(1, i));
+            xyz1 = convert2DpointTo3D(cam_params.Kdepth, image_depth1, round(x1), round(y1));
+            xyz2 = convert2DpointTo3D(cam_params.Kdepth, image_depth2, round(x2), round(y2));
+            %obj1 = whichObject(objects, xyz1, 0);
+            %obj2 = whichObject(frame_objs, xyz2, 1);
+        end
         
         % update the frame to compare
         pcm1 = pcm2;
         image_rgb2 = image_rgb1;
         image_depth1 = image_depth2;
         
-        pause;
     end
 
     objects = 1;
@@ -138,8 +132,8 @@ function pcm = get_merged_pointCloud(i, imgseq1, imgseq2, cam_params, bgimd1, bg
     pc1 = pointCloud(foreg_xyz1, 'Color', reshape(foreg_rgb1,[dim(1)*dim(2) 3]));
     foreg_xyz2toW = cam2toW.R*foreg_xyz2'+cam2toW.T*ones(1,length(foreg_xyz2));
     pc2 = pointCloud((foreg_xyz2toW)', 'Color', reshape(foreg_rgb2,[dim(1)*dim(2) 3]));
-    pcdown1 = pcdownsample(pc1,'gridAverage',0.01);
-    pcdown2 = pcdownsample(pc2,'gridAverage',0.01);
+    pcdown1 = pcdownsample(pc1,'gridAverage',0.002);
+    pcdown2 = pcdownsample(pc2,'gridAverage',0.002);
     clear pc1 pc2;
     %figure(); showPointCloud(pcdown1);
     %figure(); showPointCloud(pcdown2);
@@ -232,9 +226,9 @@ function [image_rgb, image_depth] = pointCloudto2D(pc, dim, K)
     image_depth = zeros(dim(1), dim(2));
     image_rgb = uint8(zeros(dim(1), dim(2), 3));
     for i = 1:length(x)
-        if x(i) < dim(2) && y(i) < dim(1) && x(i) > 1 && y(i) > 1
-            image_depth(x(i), y(i)) = d(i);
-            image_rgb(x(i), y(i), :) = xyz_rgb(i, :);
+        if x(i) < dim(1) && y(i) < dim(2) && x(i) > 1 && y(i) > 1
+            image_depth(y(i), x(i)) = d(i);
+            image_rgb(y(i), x(i), :) = xyz_rgb(i, :);
         end
     end
     clear X Y Z dx dy x y i Kx Ky Cx Cy;
@@ -316,6 +310,37 @@ function [frame_objs, n_obj] = detect_objects(xyz_label, nmin)
         frame_objs(i).z = [pmax.z pmax.z pmax.z pmax.z pmin.z pmin.z pmin.z pmin.z];
     end
 end
+
+function xyz_point = convert2DpointTo3D(K, image_depth, u, v) 
+
+    Kx = K(1,1); Cx = K(1,3); Ky = K(2,2); Cy = K(2,3);
+    xyz_point = zeros(1, 3);
+    xyz_point(1, 3) = image_depth(v, u);
+    xyz_point(1, 2) = (xyz_point(1, 3)/Ky) * (v-Cy);
+    xyz_point(1, 1) = (xyz_point(1, 3)/Kx) * (u-Cx);
+    
+end
+
+function obj = whichObject(objs, pt, n)
+    
+    obj = 0;
+    for i = 1:length(objs)
+        object_pts = frame_objs(i);
+        if pt.(1) < max(object_pts.X(n, :)) && pt.(1) > min(object_pts.X(n, :))
+            if pt.(2) < max(object_pts.Y(n, :)) && pt.(2) > min(object_pts.Y(n, :))
+                if pt.(3) < max(object_pts.Z(n, :)) && pt.(3) > min(object_pts.Z(n, :))
+                    obj = i;
+                    break;
+                end
+            end
+        end
+    end
+    
+end
+
+
+
+
 
 
 
