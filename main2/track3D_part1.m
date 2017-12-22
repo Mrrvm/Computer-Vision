@@ -14,11 +14,12 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
     % get first frame foreground of both cameras
     i = 1;
     [foreg_rgb1, foreg_xyz1, foreg_depth1] = get_foreground(i, imgseq1, imgseq2, cam_params, bgimd1, bgimd2);
+    
     pcm1 = get_mergedPC(foreg_xyz1, foreg_rgb1, dim, cam2toW);
     xyz_label = label_objects(pcm1, 0.2);
     xyz_label = sortrows(xyz_label, 4);
-    [frame_objs, n_obj] = detect_objects(xyz_label, 20);
-     for i = 1:n_obj
+    [frame_objs, n_obj1] = detect_objects(xyz_label, 20);
+     for i = 1:n_obj1
         objects(i).X = frame_objs(i).X;
         objects(i).Y = frame_objs(i).Y;
         objects(i).Z = frame_objs(i).Z;
@@ -34,7 +35,7 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
         % get matches between frames of cam1
         [kpts1.cam1, d1] = vl_sift(im2single(rgb2gray(foreg_rgb1.cam1)));
         [kpts2.cam1, d2] = vl_sift(im2single(rgb2gray(foreg_rgb2.cam1)));
-        [matches.cam1, scores] = vl_ubcmatch(d1, d2, 2);
+        [matches.cam1, scores] = vl_ubcmatch(d1, d2, 1.5);
         [drop, perm] = sort(scores, 'descend') ;
         matches.cam1 = matches.cam1(:, perm);
         % transform kpts in 3D for cam1
@@ -44,30 +45,36 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
         % get matches between frames of cam2
         [kpts1.cam2, d1] = vl_sift(im2single(rgb2gray(foreg_rgb1.cam2)));
         [kpts2.cam2, d2] = vl_sift(im2single(rgb2gray(foreg_rgb2.cam2)));
-        [matches.cam2, scores] = vl_ubcmatch(d1, d2, 2);
+        [matches.cam2, scores] = vl_ubcmatch(d1, d2, 1.5);
         [drop, perm] = sort(scores, 'descend') ;
         matches.cam2 = matches.cam2(:, perm) ;
         % transform kpts in 3D for cam1
         kpts1_xyz.cam2 = find_keypointsXYZ(kpts1.cam2, foreg_depth1.cam2, cam_params.Kdepth);
         kpts2_xyz.cam2 = find_keypointsXYZ(kpts2.cam2, foreg_depth2.cam2, cam_params.Kdepth);
+        % convert kpts of frame 2 to world
+        kpts1_xyz.cam2 = (cam2toW.R*kpts1_xyz.cam2'+cam2toW.T*ones(1,length(kpts1_xyz.cam2)))';    
+        kpts2_xyz.cam2 = (cam2toW.R*kpts2_xyz.cam2'+cam2toW.T*ones(1,length(kpts2_xyz.cam2)))';
         
         % get merged pointcloud for next frame
         pcm2 = get_mergedPC(foreg_xyz2, foreg_rgb2, dim, cam2toW);
         xyz_label = label_objects(pcm2, 0.2);
         xyz_label = sortrows(xyz_label, 4);
-        [frame_objs, n_obj] = detect_objects(xyz_label, 20);
+        [frame_objs, n_obj2] = detect_objects(xyz_label, 20);
+              
+        obj_scores = zeros(20, 20);
+        % get matching objects for cam1
+        obj_scores = get_obj_scores(obj_scores, matches.cam1, kpts1_xyz.cam1, kpts2_xyz.cam1, frame_objs, objects, n_obj2, n_obj1, i);
+        % get matching objects for cam2
+        obj_scores = get_obj_scores(obj_scores, matches.cam2, kpts1_xyz.cam2, kpts2_xyz.cam2, frame_objs, objects, n_obj2, n_obj1, i);
+   
+        % update objects vector
+        %update_objects(objects, frame_objs, obj_scores, i);
         
-        % update vector
-        
-        
-
         clear pcm1 foreg_rbg1 foreg_depth1 kpts1 kpts2 matches drop perm d1 d2 frame_objs xyz_label;
         foreg_rgb1 = foreg_rgb2;
         foreg_depth1 = foreg_depth2;
 
     end
-    
-    objects = 1;
 end
 
 function [imgseq1, imgseq2] = reorder_imgseq(imgseq1, imgseq2)
@@ -297,15 +304,88 @@ function kpts_xyz = find_keypointsXYZ(kpts, depth_array, K)
 
     kpts_xyz = zeros(length(kpts), 3);
     for i = 1:length(kpts)
-        x = floor(kpts(1, i));
-        y = floor(kpts(2, i));
+        x = round(kpts(1, i));
+        y = round(kpts(2, i));
         kpts_xyz(i, :) = convert2DpointTo3D(K, depth_array, x, y);
     end
 end
 
+function is = is_insideObject(object_pts, pt)
+    
+    is = 0;
+    if pt(1) < max(object_pts.X) && pt(1) > min(object_pts.X)
+        if pt(2) < max(object_pts.Y) && pt(2) > min(object_pts.Y)
+            if pt(3) < max(object_pts.Z) && pt(3) > min(object_pts.Z)
+                is = 1;
+            end
+        end
+    end    
+end
 
+function obj_scores = get_obj_scores(obj_scores, matches, kpts1_xyz, kpts2_xyz, frame_objs, objects, n_obj2, n_obj1, i)
+    for m = 1:length(matches)
+        xyz1 = kpts1_xyz(matches(1,m), :);
+        xyz2 = kpts2_xyz(matches(2,m), :);
+        obj1 = 0; obj2 = 0;
+        if xyz1(1,1) ~= 0 || xyz1(1,2) ~= 0 || xyz1(1,3) ~= 0
+            if xyz2(1,1) ~= 0 || xyz2(1,2) ~= 0 || xyz2(1,3) ~= 0
+                % find which object it is for frame 2
+                for n = 1:n_obj2
+                    if is_insideObject(frame_objs(n), xyz2)
+                        obj2 = n;
+                        n = n_obj2+1;
+                    end
+                end
+                % find which object it is for frame 1
+                for n = 1:n_obj1
+                    sz = size(objects(n).X);
+                    if sz(1) ~= 0  
+                        if i-1 == objects(n).frames_tracked(sz(1))
+                            obj_aux.X = objects(n).X(sz(1), :);
+                            obj_aux.Y = objects(n).Y(sz(1), :);
+                            obj_aux.Z = objects(n).Z(sz(1), :);
+                            if is_insideObject(obj_aux, xyz1)
+                                obj1 = n;
+                                n = n_obj1+1;
+                            end
+                        end
+                    end
+                end
+                if obj1 ~= 0 && obj2 ~= 0
+                    obj_scores(obj1, obj2) = obj_scores(obj1, obj2) + 1;
+                end
+            end
+        end     
+    end
+end
 
-
+function update_objects(objects, new_objs, scores, frame)
+    for i = 1:numel(objects)
+        
+        [scr, ind] = max(scores);
+        ind = sub2ind(size(scores), ind);
+        scores(ind(1), :) = 0;
+        scores(:, ind(2)) = 0;
+        
+        if(scr ~= 0)
+            objects(ind1).X = [objects(ind1).X; new_objs(ind2).X]; 
+            objects(ind1).Y = [objects(ind1).Y; new_objs(ind2).Y];
+            objects(ind1).Z = [objects(ind1).Z; new_objs(ind2).Z];
+            objects(ind1).frames_tracked = [objects(ind1).frames_tracked frame]; 
+            new_objs(ind2) = [];
+        end 
+    end
+    
+    %if there are new objects this adds the new objs to the final object
+    %array
+    for i = numel(new_objs)
+        obj_new.X = new_objs(i).X;
+        obj_new.Y = new_objs(i).Y;
+        obj_new.Z = new_objs(i).Z;
+        obj_new.frames_tracked = frame;
+        objects = [objects obj_new];
+    end
+end
 
 
 
