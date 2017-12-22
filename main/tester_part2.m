@@ -28,8 +28,9 @@ cam1toW.R = [1 0 0; 0 1 0; 0 0 1];
 cam1toW.T = [0; 0; 0];
 
 % define the images to analyze
+MAX = 5;
 n_imgs = length(im1);
-if n_imgs < 10
+if n_imgs < MAX
     n_sets = n_imgs;
     img_set = zeros(1, n_imgs);
     for i = 1:n_imgs
@@ -37,7 +38,7 @@ if n_imgs < 10
     end
 else
     p = floor(n_imgs/10);
-    n_sets = 10;
+    n_sets = MAX;
     img_set = zeros(1, n_sets);
     p_aux = p;
     for i = 1:n_sets
@@ -97,22 +98,28 @@ for j = 1:n_sets
         if d < d_best
             tr_best = tr;
             d_best = d;
-            img1_best = img_rgb_indepth1;
-            img2_best = img_rgb_indepth2;
-            matchedPoints1_best= matchedPoints1(ind, :);
-            matchedPoints2_best= matchedPoints2(ind, :);
+            %img1_best = img_rgb_indepth1;
+            %img2_best = img_rgb_indepth2;
+            %matchedPoints1_best= matchedPoints1(ind, :);
+            %matchedPoints2_best= matchedPoints2(ind, :);
         end
     end   
     clear matchedPoints1 matchedPoints2;
 end
 
-showMatchedFeatures(img1_best, img2_best, matchedPoints1_best, matchedPoints2_best,'montage','PlotOptions',{'ro','go','y--'});
+%showMatchedFeatures(img1_best, img2_best, matchedPoints1_best, matchedPoints2_best,'montage','PlotOptions',{'ro','go','y--'});
 
+cam2toW.R = tr_best.T';
+cam2toW.T = tr_best.c(1,:)';
 
+clear tr n_samples ind xyz1_points xyz2_points d tr_best xx matchedPoints1 matchedPoints2 c matches kpts1 kpts2;
+clear img_rgb_indepth1 img_rgb-indepth2 xyz1 xyz2 depth_array1 depth_array2 matches scores;
+% runs part1
+objects = track3D_part1(im1, im2, cam_params, cam1toW, cam2toW);
 
-
-
-
+clear all;
+close all;
+clc;
 
 
 
