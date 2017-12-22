@@ -68,7 +68,7 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
         obj_scores = get_obj_scores(obj_scores, matches.cam2, kpts1_xyz.cam2, kpts2_xyz.cam2, frame_objs, objects, n_obj2, n_obj1, i);
    
         % update objects vector
-        %update_objects(objects, frame_objs, obj_scores, i);
+        [objects, n_obj1] = update_objects(objects, frame_objs, obj_scores, i, n_obj1);
         
         clear pcm1 foreg_rbg1 foreg_depth1 kpts1 kpts2 matches drop perm d1 d2 frame_objs xyz_label;
         foreg_rgb1 = foreg_rgb2;
@@ -359,31 +359,32 @@ function obj_scores = get_obj_scores(obj_scores, matches, kpts1_xyz, kpts2_xyz, 
     end
 end
 
-function update_objects(objects, new_objs, scores, frame)
-    for i = 1:numel(objects)
-        
-        [scr, ind] = max(scores);
-        ind = sub2ind(size(scores), ind);
-        scores(ind(1), :) = 0;
-        scores(:, ind(2)) = 0;
+function [objects, n_obj] = update_objects(objects, new_objs, scores, frame, n_obj)
+
+    for i = 1:length(new_objs)
+        [scr, ind] = max(scores(:));
+        [m, n] = ind2sub(size(scores), ind);
+        scores(m, :) = 0;
+        scores(:, n) = 0;
         
         if(scr ~= 0)
-            objects(ind1).X = [objects(ind1).X; new_objs(ind2).X]; 
-            objects(ind1).Y = [objects(ind1).Y; new_objs(ind2).Y];
-            objects(ind1).Z = [objects(ind1).Z; new_objs(ind2).Z];
-            objects(ind1).frames_tracked = [objects(ind1).frames_tracked frame]; 
-            new_objs(ind2) = [];
+            objects(m).X = [objects(m).X; new_objs(n).X]; 
+            objects(m).Y = [objects(m).Y; new_objs(n).Y];
+            objects(m).Z = [objects(m).Z; new_objs(n).Z];
+            objects(m).frames_tracked = [objects(m).frames_tracked frame]; 
+            new_objs(n).X = []; new_objs(n).Y = []; new_objs(n).Z = [];
         end 
     end
     
-    %if there are new objects this adds the new objs to the final object
-    %array
-    for i = numel(new_objs)
-        obj_new.X = new_objs(i).X;
-        obj_new.Y = new_objs(i).Y;
-        obj_new.Z = new_objs(i).Z;
-        obj_new.frames_tracked = frame;
-        objects = [objects obj_new];
+    % add untracked objects as new ones
+    for i = 1:length(new_objs)
+        if ~isempty(new_objs(i).X)
+            n_obj = n_obj+1;
+            objects(n_obj).X = new_objs(i).X;
+            objects(n_obj).Y = new_objs(i).Y;
+            objects(n_obj).Z = new_objs(i).Z;
+            objects(n_obj).frames_tracked = frame;         
+        end
     end
 end
 

@@ -117,4 +117,11 @@ clear img_rgb_indepth1 img_rgb-indepth2 xyz1 xyz2 depth_array1 depth_array2 matc
 % runs part1
 objects = track3D_part1(im1, im2, cam_params, cam1toW, cam2toW);
 
+for k=1:length(objects(1).frames_tracked),
+     figure(1);
+     plot3(objects(1).X(k,:) , objects(1).Y(k,:),objects(23).Z(k,:),'*')
+     figure(2);
+    im1 =imread( imgseq1(objects(23).frames_tracked(k)).rgb)
+    imshow(im1)
+end
 

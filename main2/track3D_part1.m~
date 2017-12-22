@@ -60,71 +60,21 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
         xyz_label = label_objects(pcm2, 0.2);
         xyz_label = sortrows(xyz_label, 4);
         [frame_objs, n_obj2] = detect_objects(xyz_label, 20);
-        
-        obj_matches = zeros(20, 20);
+              
+        obj_scores = zeros(20, 20);
         % get matching objects for cam1
-        for m = 1:length(matches.cam1)
-            xyz1 = kpts1_xyz.cam1(m, :);
-            xyz2 = kpts2_xyz.cam1(m, :);
-            if xyz1(1,1) ~= 0 || xyz1(1,2) ~= 0 || xyz1(1,3) ~= 0
-                if xyz2(1,1) ~= 0 || xyz2(1,2) ~= 0 || xyz2(1,3) ~= 0
-                    xa = kpts1.cam1(1,matches.cam1(1,m));
-                    xb = kpts2.cam1(1,matches.cam1(2,m)) + size(foreg_rgb1.cam1,2);
-                    ya = kpts1.cam1(2,matches.cam1(1,m));
-                    yb = kpts2.cam1(2,matches.cam1(2,m));
-
-                    kpts2_a = kpts2.cam1;
-                    figure(2) ; clf ;
-                    imagesc(cat(2, foreg_rgb1.cam1, foreg_rgb2.cam1)) ;
-                    hold on ;
-                    h = line([xa ; xb], [ya ; yb]) ;
-                    set(h,'linewidth', 1, 'color', 'b') ;
-                    vl_plotframe(kpts1.cam1(:,matches.cam1(1,m))) ;
-                    kpts2_a(1,:) = kpts2_a(1,:) + size(foreg_rgb1.cam1,2) ;
-                    vl_plotframe(kpts2_a(:,matches.cam1(2,m))) ;
-                    axis image off ;
-                    obj2 = 0; obj1 = 0;
-                    % find which object it is for frame 2
-                    for n = 1:n_obj2
-                        if is_insideObject(frame_objs(n), xyz2)
-                            obj2 = n;
-                            n = n_obj2+1;
-                        end
-                    end
-                    % find which object it is for frame 1
-                    for n = 1:n_obj1
-                        sz = size(objects(n).X);
-                        if sz(1) ~= 0  
-                            if i-1 == objects(n).frames_tracked(sz(1))
-                                obj_aux.X = objects(n).X(sz(1), :);
-                                obj_aux.Y = objects(n).Y(sz(1), :);
-                                obj_aux.Z = objects(n).Z(sz(1), :);
-                                if is_insideObject(obj_aux, xyz1)
-                                    obj1 = n;
-                                    n = n_obj1+1;
-                                end
-                            end
-                        end
-                    end
-                    if obj1 ~= 0 && obj2 ~= 0
-                        obj_matches(obj1, obj2) = obj_matches(obj1, obj2) + 1;
-                    end
-                end
-            end     
-        end
-        
-               
+        obj_scores = get_obj_scores(obj_scores, matches.cam1, kpts1_xyz.cam1, kpts2_xyz.cam1, frame_objs, objects, n_obj2, n_obj1, i);
         % get matching objects for cam2
-        
+        obj_scores = get_obj_scores(obj_scores, matches.cam2, kpts1_xyz.cam2, kpts2_xyz.cam2, frame_objs, objects, n_obj2, n_obj1, i);
+   
         % update objects vector
+        update_objects(objects, frame_objs, obj_scores, i);
         
         clear pcm1 foreg_rbg1 foreg_depth1 kpts1 kpts2 matches drop perm d1 d2 frame_objs xyz_label;
         foreg_rgb1 = foreg_rgb2;
         foreg_depth1 = foreg_depth2;
 
     end
-    
-    objects = 1;
 end
 
 function [imgseq1, imgseq2] = reorder_imgseq(imgseq1, imgseq2)
@@ -336,7 +286,6 @@ function [frame_objs, n_obj] = detect_objects(xyz_label, nmin)
         frame_objs(i).X = repmat([pmax.x pmin.x], 1, 4);
         frame_objs(i).Y = repmat([pmax.y pmax.y pmin.y pmin.y], 1, 2);
         frame_objs(i).Z = [pmax.z pmax.z pmax.z pmax.z pmin.z pmin.z pmin.z pmin.z];
-        frame_objs(i).saved = 0;
     end
 end
 
@@ -355,8 +304,8 @@ function kpts_xyz = find_keypointsXYZ(kpts, depth_array, K)
 
     kpts_xyz = zeros(length(kpts), 3);
     for i = 1:length(kpts)
-        x = floor(kpts(1, i));
-        y = floor(kpts(2, i));
+        x = round(kpts(1, i));
+        y = round(kpts(2, i));
         kpts_xyz(i, :) = convert2DpointTo3D(K, depth_array, x, y);
     end
 end
@@ -373,8 +322,76 @@ function is = is_insideObject(object_pts, pt)
     end    
 end
 
+function obj_scores = get_obj_scores(obj_scores, matches, kpts1_xyz, kpts2_xyz, frame_objs, objects, n_obj2, n_obj1, i)
+    for m = 1:length(matches)
+        xyz1 = kpts1_xyz(matches(1,m), :);
+        xyz2 = kpts2_xyz(matches(2,m), :);
+        obj1 = 0; obj2 = 0;
+        if xyz1(1,1) ~= 0 || xyz1(1,2) ~= 0 || xyz1(1,3) ~= 0
+            if xyz2(1,1) ~= 0 || xyz2(1,2) ~= 0 || xyz2(1,3) ~= 0
+                % find which object it is for frame 2
+                for n = 1:n_obj2
+                    if is_insideObject(frame_objs(n), xyz2)
+                        obj2 = n;
+                        n = n_obj2+1;
+                    end
+                end
+                % find which object it is for frame 1
+                for n = 1:n_obj1
+                    sz = size(objects(n).X);
+                    if sz(1) ~= 0  
+                        if i-1 == objects(n).frames_tracked(sz(1))
+                            obj_aux.X = objects(n).X(sz(1), :);
+                            obj_aux.Y = objects(n).Y(sz(1), :);
+                            obj_aux.Z = objects(n).Z(sz(1), :);
+                            if is_insideObject(obj_aux, xyz1)
+                                obj1 = n;
+                                n = n_obj1+1;
+                            end
+                        end
+                    end
+                end
+                if obj1 ~= 0 && obj2 ~= 0
+                    obj_scores(obj1, obj2) = obj_scores(obj1, obj2) + 1;
+                end
+            end
+        end     
+    end
+end
 
+function [objects, n_obj] = update_objects(objects, new_objs, scores, frame)
 
+    for i = 1:length(new_objects)
+        [scr, ind] = max(scores(:));
+        [m, n] = ind2sub(size(scores), ind);
+        scores(m, :) = 0;
+        scores(:, n) = 0;
+        
+        if(scr ~= 0)
+            objects(m).X = [objects(m).X; new_objs(n).X]; 
+            objects(m).Y = [objects(m).Y; new_objs(n).Y];
+            objects(m).Z = [objects(m).Z; new_objs(n).Z];
+            objects(m).frames_tracked = [objects(ind1).frames_tracked frame]; 
+            new_objs(n).X = []; new_objs(n).Y = []; new_objs(n).Z = [];
+        end 
+    end
+    
+    for i = 1:length(objects)
+        if isempty(objects(i).X)
+            n_obj = i-1;
+            i = length(objects)+1;
+        end
+    end
+    % add untracked objects as new ones
+    for i = 1:length(new_objs)
+        if 
+        end
+        objects.X = new_objs(i).X;
+        objects.Y = new_objs(i).Y;
+        objects.Z = new_objs(i).Z;
+        objects.frames_tracked = frame;
+    end
+end
 
 
 
