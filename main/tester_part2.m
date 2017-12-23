@@ -19,7 +19,7 @@ for i=1:length(d1)
 end
 
 % runs part2
-objects = track3D_part2(im1, im2, cam_params);
+[objects, cam1toW, cam2toW]  = track3D_part2(im1, im2, cam_params);
 
 clearvars -except objects
 

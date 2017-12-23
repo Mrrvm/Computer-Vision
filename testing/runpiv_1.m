@@ -5,29 +5,25 @@ close all
 clc
 
 %DATA DIRECTORY
-base_data_dir='C:\Users\luisr\Desktop\Luis\IST\PIV\pivproject\datasets\maizena_chocapic\data_rgb\';
-d1 = dir(cat(2,base_data_dir, 'depth1*'));
-d2 = dir(cat(2,base_data_dir, 'depth2*'));
-r1 = dir(cat(2,base_data_dir, 'rgb_image1_*'));
-r2 = dir(cat(2,base_data_dir, 'rgb_image2_*'));
-for i=1:length(d1)
-    temprgb = dir(cat(2,base_data_dir, 'rgb_image1_', num2str(i),'.png'));
-    im1(i).rgb = temprgb.name;
-    tempdepth = dir(cat(2,base_data_dir, 'depth1_', num2str(i),'.mat'));
-    im1(i).depth = tempdepth.name;
-    temprgb = dir(cat(2,base_data_dir, 'rgb_image2_', num2str(i),'.png'));
-    im2(i).rgb = temprgb.name;
-    tempdepth = dir(cat(2,base_data_dir, 'depth2_', num2str(i),'.mat'));
-    im2(i).depth = tempdepth.name;
+base_data_dir='/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena2/';
+d1=dir([base_data_dir 'depth1*']);
+d2=dir([base_data_dir 'depth2*']);
+r1=dir([base_data_dir 'rgb_image1_*']);
+r2=dir([base_data_dir 'rgb_image2_*']);
+for i=1:length(d1),
+    im1(i).rgb=[base_data_dir r1(i).name];
+    im2(i).rgb=[base_data_dir r2(i).name];
+    im1(i).depth=[base_data_dir d1(i).name];
+    im2(i).depth=[base_data_dir d2(i).name];
 end
 
 %Load calibration data
 load cameraparametersAsus;
 %WORKING DIRECTORY - location where all directories with programs
-basedir='C:\Users\luisr\Desktop\Luis\IST\PIV\testing';
+basedir='/home/imarcher/Dropbox/Tecnico/PIV/Project/testing';
 %POINTS DIRECTORY
-ptsdir = 'C:\Users\luisr\Desktop\Luis\IST\PIV\pivproject\points';
-dataset = 'maizena_chocapic';
+ptsdir = '/home/imarcher/Dropbox/Tecnico/PIV/Project/main/points';
+dataset = 'maizena2';
 projs=dir(basedir);
 % LOGFILE
 outputdir=cat(2,dataset,'/');
@@ -95,7 +91,7 @@ try %%%Correr todos os projectos em paralelo!
     for i=3:length(projs),
         close all; %fechar as janelas que deixam abertas!!!!
         if projs(i).isdir && ~strcmp(projs(i).name,'.') && ~strcmp(projs(i).name , '..'),
-            cd([basedir '\' projs(i).name]);
+            cd([basedir '/' projs(i).name]);
             fprintf('correr o projecto %s \n',pwd);
             if exist('track3D_part1.m'),
                 corre='[objects] = track3D_part1( im1, im2, cam_params, cam1toW, cam2toW);';

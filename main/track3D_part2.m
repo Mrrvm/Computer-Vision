@@ -1,4 +1,4 @@
-function objects = track3D_part2(imgseq1, imgseq2, cam_params)
+function [objects, cam1toW, cam2toW]  = track3D_part2(imgseq1, imgseq2, cam_params)
 
     i = 1;
     % get image dimension
