@@ -1,14 +1,12 @@
 %remove background fom imgseq1 and imgseq2
-dirrgb1 = dir('/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena2/rgb_image1_*.png');
-dir_depth1 = dir('/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena2/depth1_*.mat');
-imshow(imread(dirrgb1(1).name));
+dirrgb1 = dir('/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena4/rgb_image1_*.png');
+dir_depth1 = dir('/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena4/depth1_*.mat');
+
 ims=[];
 imsd=[];
 for i=1:numel(dirrgb1)
-    im=rgb2gray(imread(dirrgb1(i).name));
-    imshow(im); colormap(gray);
-    load(dir_depth1(i).name);
-    drawnow;
+    im=rgb2gray(imread([dirrgb1(i).folder '/' dirrgb1(i).name]));
+    load([dir_depth1(i).folder '/' dir_depth1(i).name]);
     ims=[ims im(:)];
     imsd=[imsd depth_array(:)];
 end
@@ -19,12 +17,12 @@ bgim=(uint8(reshape(medim,[480 640])));
 bgimd=reshape(meddep,[480 640]);
 
 for i=1:numel(dirrgb1)
-    im=rgb2gray(imread(dirrgb1(i).name));
-    imshow(im);
+    im=rgb2gray(imread([dirrgb1(i).folder '/' dirrgb1(i).name]));
+    
     foreg = abs(double(im)-double(bgim))>40;
     %foreg=bwareafilt(abs(double(im)-double(bgim))>40,[1000 480*640]);
     %foreg =bwlabel(foreg);
-    figure(3);
+        figure(3);
     imshow(255*foreg);
 
     if(i>1) 

@@ -6,7 +6,7 @@ clc;
 load '/home/imarcher/Dropbox/Tecnico/PIV/Project/main/cameraparametersAsus.mat';
 
 % loads dataset
-base_data_dir = '/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/duascamaras/';
+base_data_dir = '/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena4/';
 d1 = dir([base_data_dir 'depth1*']);
 d2 = dir([base_data_dir 'depth2*']);
 r1 = dir([base_data_dir 'rgb_image1_*']);
