@@ -91,18 +91,34 @@ for j = 1:n_sets
     end
 
     for i = 1:n_samples
-        ind = randperm(length(matchedPoints1),4);
-        xyz1_points(:, :) = xyz1(sub2ind(size(depth_array1), matchedPoints1(ind, 2), matchedPoints1(ind,1)), :);
-        xyz2_points(:, :) = xyz2(sub2ind(size(depth_array2), matchedPoints2(ind, 2), matchedPoints2(ind,1)), :);
-        [d,xx,tr] = procrustes(xyz1_points, xyz2_points,'scaling',false,'reflection',false);
+        alsoinliers = [];
+        maybeinliers = randperm(length(matchedPoints1),4);
+        xyz1_points(:, :) = xyz1(sub2ind(dim, matchedPoints1(maybeinliers, 2), matchedPoints1(maybeinliers,1)), :);
+        xyz2_points(:, :) = xyz2(sub2ind(dim, matchedPoints2(maybeinliers, 2), matchedPoints2(maybeinliers,1)), :);
+        [d, xx, tr] = procrustes(xyz1_points, xyz2_points,'scaling',false,'reflection',false);
+        
+        for j = 1:length(matchedPoints1)
+            if j ~= maybeinliers(1) && j ~= maybeinliers(2) && j ~= maybeinliers(3) && j ~= maybeinliers(4)
+                pt1 = xyz1(sub2ind(dim, matchedPoints1(j, 2), matchedPoints1(j,1)), :);
+                pt2 = xyz2(sub2ind(dim, matchedPoints2(j, 2), matchedPoints2(j,1)), :);
+                pt2W = pt2*tr.T+tr.c(1,:);
+                dist = sqrt((pt2W(1,1)-pt1(1,1))^2)+((pt2W(1,2)-pt1(1,2))^2)+((pt2W(1,3)-pt1(1,3))^2);
+                if dist < 0.3
+                    alsoinliers = [alsoinliers j];
+                end
+            end
+        end
+        
+        alsoinliers = [alsoinliers maybeinliers];
+        final_points1(:, :) = xyz1(sub2ind(dim, matchedPoints1(alsoinliers, 2), matchedPoints1(alsoinliers,1)), :);
+        final_points2(:, :) = xyz2(sub2ind(dim, matchedPoints2(alsoinliers, 2), matchedPoints2(alsoinliers,1)), :);
+        [d, xx, tr] = procrustes(final_points1, final_points2,'scaling',false,'reflection',false);
+        clear final_points1 final_points2 xyz1_points xyz2_points;
         if d < d_best
             tr_best = tr;
             d_best = d;
-            %img1_best = img_rgb_indepth1;
-            %img2_best = img_rgb_indepth2;
-            %matchedPoints1_best= matchedPoints1(ind, :);
-            %matchedPoints2_best= matchedPoints2(ind, :);
         end
+        
     end   
     clear matchedPoints1 matchedPoints2;
 end
@@ -117,11 +133,4 @@ clear img_rgb_indepth1 img_rgb-indepth2 xyz1 xyz2 depth_array1 depth_array2 matc
 % runs part1
 objects = track3D_part1(im1, im2, cam_params, cam1toW, cam2toW);
 
-for k=1:length(objects(1).frames_tracked),
-     figure(1);
-     plot3(objects(1).X(k,:) , objects(1).Y(k,:),objects(23).Z(k,:),'*')
-     figure(2);
-    im1 =imread( imgseq1(objects(23).frames_tracked(k)).rgb)
-    imshow(im1)
-end
 

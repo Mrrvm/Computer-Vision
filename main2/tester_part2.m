@@ -6,7 +6,7 @@ clc;
 load '/home/imarcher/Dropbox/Tecnico/PIV/Project/main/cameraparametersAsus.mat';
 
 % loads dataset
-base_data_dir = '/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/maizena2/';
+base_data_dir = '/home/imarcher/Dropbox/Tecnico/PIV/Project/datasets/duascamaras/';
 d1 = dir([base_data_dir 'depth1*']);
 d2 = dir([base_data_dir 'depth2*']);
 r1 = dir([base_data_dir 'rgb_image1_*']);
@@ -28,7 +28,7 @@ cam1toW.R = [1 0 0; 0 1 0; 0 0 1];
 cam1toW.T = [0; 0; 0];
 
 % define the images to analyze
-MAX = 5;
+MAX = 7;
 n_imgs = length(im1);
 if n_imgs < MAX
     n_sets = n_imgs;
@@ -91,18 +91,16 @@ for j = 1:n_sets
     end
 
     for i = 1:n_samples
-        ind = randperm(length(matchedPoints1),4);
-        xyz1_points(:, :) = xyz1(sub2ind(size(depth_array1), matchedPoints1(ind, 2), matchedPoints1(ind,1)), :);
-        xyz2_points(:, :) = xyz2(sub2ind(size(depth_array2), matchedPoints2(ind, 2), matchedPoints2(ind,1)), :);
-        [d,xx,tr] = procrustes(xyz1_points, xyz2_points,'scaling',false,'reflection',false);
+        clear xyz1_points xyz2_points;
+        maybeinliers = randperm(length(matchedPoints1),4);
+        xyz1_points(:, :) = xyz1(sub2ind(dim, matchedPoints1(maybeinliers, 2), matchedPoints1(maybeinliers,1)), :);
+        xyz2_points(:, :) = xyz2(sub2ind(dim, matchedPoints2(maybeinliers, 2), matchedPoints2(maybeinliers,1)), :);
+        [d, xx, tr] = procrustes(xyz1_points, xyz2_points,'scaling',false,'reflection',false);
+        
         if d < d_best
             tr_best = tr;
             d_best = d;
-            %img1_best = img_rgb_indepth1;
-            %img2_best = img_rgb_indepth2;
-            %matchedPoints1_best= matchedPoints1(ind, :);
-            %matchedPoints2_best= matchedPoints2(ind, :);
-        end
+        end        
     end   
     clear matchedPoints1 matchedPoints2;
 end
@@ -117,4 +115,5 @@ clear img_rgb_indepth1 img_rgb-indepth2 xyz1 xyz2 depth_array1 depth_array2 matc
 % runs part1
 objects = track3D_part1(im1, im2, cam_params, cam1toW, cam2toW);
 
+clearvars -except objects
 

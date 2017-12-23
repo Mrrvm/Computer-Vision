@@ -18,7 +18,7 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
     pcm1 = get_mergedPC(foreg_xyz1, foreg_rgb1, dim, cam2toW);
     xyz_label = label_objects(pcm1, 0.2);
     xyz_label = sortrows(xyz_label, 4);
-    [frame_objs, n_obj1] = detect_objects(xyz_label, 20);
+    [frame_objs, n_obj1] = detect_objects(xyz_label, 30);
      for i = 1:n_obj1
         objects(i).X = frame_objs(i).X;
         objects(i).Y = frame_objs(i).Y;
@@ -32,45 +32,58 @@ function objects = track3D_part1(imgseq1, imgseq2, cam_params, cam1toW, cam2toW)
         
         % get foreground for next frame of both cameras
         [foreg_rgb2, foreg_xyz2, foreg_depth2] = get_foreground(i, imgseq1, imgseq2, cam_params, bgimd1, bgimd2);
+        
         % get matches between frames of cam1
         [kpts1.cam1, d1] = vl_sift(im2single(rgb2gray(foreg_rgb1.cam1)));
         [kpts2.cam1, d2] = vl_sift(im2single(rgb2gray(foreg_rgb2.cam1)));
-        [matches.cam1, scores] = vl_ubcmatch(d1, d2, 1.5);
-        [drop, perm] = sort(scores, 'descend') ;
-        matches.cam1 = matches.cam1(:, perm);
-        % transform kpts in 3D for cam1
-        kpts1_xyz.cam1 = find_keypointsXYZ(kpts1.cam1, foreg_depth1.cam1, cam_params.Kdepth);
-        kpts2_xyz.cam1 = find_keypointsXYZ(kpts2.cam1, foreg_depth2.cam1, cam_params.Kdepth);
+        if ~isempty(kpts1.cam1) && ~isempty(kpts2.cam1)
+            [matches.cam1, scores] = vl_ubcmatch(d1, d2, 1.5);
+            [drop, perm] = sort(scores, 'descend') ;
+            matches.cam1 = matches.cam1(:, perm);
+            % transform kpts in 3D for cam1
+            kpts1_xyz.cam1 = find_keypointsXYZ(kpts1.cam1, foreg_depth1.cam1, cam_params.Kdepth);
+            kpts2_xyz.cam1 = find_keypointsXYZ(kpts2.cam1, foreg_depth2.cam1, cam_params.Kdepth);
+        else
+            matches.cam1 = [];
+            kpts1_xyz.cam1 = [];
+            kpts2_xyz.cam1 = [];
+        end
         
         % get matches between frames of cam2
         [kpts1.cam2, d1] = vl_sift(im2single(rgb2gray(foreg_rgb1.cam2)));
         [kpts2.cam2, d2] = vl_sift(im2single(rgb2gray(foreg_rgb2.cam2)));
-        [matches.cam2, scores] = vl_ubcmatch(d1, d2, 1.5);
-        [drop, perm] = sort(scores, 'descend') ;
-        matches.cam2 = matches.cam2(:, perm) ;
-        % transform kpts in 3D for cam1
-        kpts1_xyz.cam2 = find_keypointsXYZ(kpts1.cam2, foreg_depth1.cam2, cam_params.Kdepth);
-        kpts2_xyz.cam2 = find_keypointsXYZ(kpts2.cam2, foreg_depth2.cam2, cam_params.Kdepth);
-        % convert kpts of frame 2 to world
-        kpts1_xyz.cam2 = (cam2toW.R*kpts1_xyz.cam2'+cam2toW.T*ones(1,length(kpts1_xyz.cam2)))';    
-        kpts2_xyz.cam2 = (cam2toW.R*kpts2_xyz.cam2'+cam2toW.T*ones(1,length(kpts2_xyz.cam2)))';
-        
+        if ~isempty(kpts1.cam2) && ~isempty(kpts2.cam2)
+            [matches.cam2, scores] = vl_ubcmatch(d1, d2, 1.5);
+            [drop, perm] = sort(scores, 'descend') ;
+            matches.cam2 = matches.cam2(:, perm) ;
+            % transform kpts in 3D for cam1
+            kpts1_xyz.cam2 = find_keypointsXYZ(kpts1.cam2, foreg_depth1.cam2, cam_params.Kdepth);
+            kpts2_xyz.cam2 = find_keypointsXYZ(kpts2.cam2, foreg_depth2.cam2, cam_params.Kdepth);
+            % convert kpts of frame 2 to world
+            kpts1_xyz.cam2 = (cam2toW.R*kpts1_xyz.cam2'+cam2toW.T*ones(1,length(kpts1_xyz.cam2)))';    
+            kpts2_xyz.cam2 = (cam2toW.R*kpts2_xyz.cam2'+cam2toW.T*ones(1,length(kpts2_xyz.cam2)))';
+        else
+            matches.cam2 = [];
+            kpts1_xyz.cam2 = [];
+            kpts2_xyz.cam2 = [];
+        end
+              
         % get merged pointcloud for next frame
         pcm2 = get_mergedPC(foreg_xyz2, foreg_rgb2, dim, cam2toW);
         xyz_label = label_objects(pcm2, 0.2);
         xyz_label = sortrows(xyz_label, 4);
         [frame_objs, n_obj2] = detect_objects(xyz_label, 20);
               
-        obj_scores = zeros(20, 20);
+        obj_scores = zeros(100, 100);
         % get matching objects for cam1
-        obj_scores = get_obj_scores(obj_scores, matches.cam1, kpts1_xyz.cam1, kpts2_xyz.cam1, frame_objs, objects, n_obj2, n_obj1, i);
+        obj_scores = get_obj_scores(obj_scores, matches.cam1, kpts1_xyz.cam1, kpts2_xyz.cam1, frame_objs, objects, n_obj2, n_obj1, i);       
         % get matching objects for cam2
         obj_scores = get_obj_scores(obj_scores, matches.cam2, kpts1_xyz.cam2, kpts2_xyz.cam2, frame_objs, objects, n_obj2, n_obj1, i);
    
         % update objects vector
         [objects, n_obj1] = update_objects(objects, frame_objs, obj_scores, i, n_obj1);
         
-        clear pcm1 foreg_rbg1 foreg_depth1 kpts1 kpts2 matches drop perm d1 d2 frame_objs xyz_label;
+        clear obj_scores pcm1 foreg_rbg1 foreg_depth1 kpts1 kpts2 matches drop perm d1 d2 frame_objs xyz_label;
         foreg_rgb1 = foreg_rgb2;
         foreg_depth1 = foreg_depth2;
 
@@ -302,10 +315,17 @@ end
 
 function kpts_xyz = find_keypointsXYZ(kpts, depth_array, K)
 
+    sz = size(kpts);
     kpts_xyz = zeros(length(kpts), 3);
-    for i = 1:length(kpts)
+    for i = 1:sz(2)
         x = round(kpts(1, i));
         y = round(kpts(2, i));
+        if x > 640
+            x = 640;
+        end
+        if y > 480 
+            y = 480
+        end
         kpts_xyz(i, :) = convert2DpointTo3D(K, depth_array, x, y);
     end
 end
@@ -323,7 +343,8 @@ function is = is_insideObject(object_pts, pt)
 end
 
 function obj_scores = get_obj_scores(obj_scores, matches, kpts1_xyz, kpts2_xyz, frame_objs, objects, n_obj2, n_obj1, i)
-    for m = 1:length(matches)
+    sz = size(matches);
+    for m = 1:sz(2)
         xyz1 = kpts1_xyz(matches(1,m), :);
         xyz2 = kpts2_xyz(matches(2,m), :);
         obj1 = 0; obj2 = 0;
